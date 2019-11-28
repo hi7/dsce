@@ -39,6 +39,7 @@ Op = {
     get_local: 0x20,
     f32_neg: 0x8c,
     f32_add: 0x92,
+    f32_sub: 0x93,
     f32_max: 0x97,
 };
 
@@ -48,6 +49,7 @@ function decodeOp(op) {
         case 0x20: return { op: "get_local", immediate: 1, paramCount: 0 };
         case 0x8c: return { op: "f32.neg", immediate: 0, paramCount: 1 };
         case 0x92: return { op: "f32.add", immediate: 0, paramCount: 2 };
+        case 0x93: return { op: "f32.sub", immediate: 0, paramCount: 2 };
         case 0x97: return { op: "f32.max", immediate: 0, paramCount: 2 };
         default: return { op: ">>" + op + "<<", immediate: undefined, paramCount: undefined };
     }
@@ -144,29 +146,81 @@ function createSection(section, data) {
     return [section].concat(data);
 }
 
+class UnaryOp {
+    constructor(name, exp, params, ret, code) {
+        this.name = name;
+        this.export = exp;
+        this.params = params;
+        this.ret = ret;
+        this.code = code;
+    }
+    renderLocals() {
+        if(this.code[0] > emptyArray) {
+            let localsElement = document.createElement('div');
+            localsElement.innerText = 'multiple locals: not implemented!';
+            target.append(localsElement);
+        }
+    }
+    render(target) { // postfix
+        target.innerText = this.name + this.params[0].name;
+    }
+    renderWasm(target) {
+        target.innerText = '';
+        for(let i=0; i<this.code.length; i++) {
+            if(i === 0) {
+                this.renderLocals();
+            }
+            if(i > 0) {
+                let lineElement = document.createElement('div');
+                let decoded = decodeOp(this.code[i]);
+                if(decoded.op !== 'end') {
+                    let lineText = decoded.op;
+                    for(let j=0; j<decoded.immediate; j++) {
+                        lineText += ' ' + this.code[++i];
+                    }
+                    lineElement.innerText = lineText;
+                    target.append(lineElement);
+                }
+            }
+        }
+    }
+}
+
+class InfixOp extends UnaryOp {
+    constructor(name, exp, params, ret, code) {
+        super(name, exp, params, ret, code);
+    }
+    render(target) { // infix
+        target.innerText = this.params[0].name + this.name + this.params[1].name;
+    }
+}
+
 Model = {
-    functions: [ {
-        name: "add",
-        export: true,
-        params: [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
-        ret: [Valtype.f32],
-        code: [emptyArray,
+    funcs: [ new InfixOp("+", true,
+        [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
+        [Valtype.f32],
+        [emptyArray,
             Op.get_local, unsignedLEB128(0),
             Op.get_local, unsignedLEB128(1),
             Op.f32_add,
             Op.end
-        ]
-    }, {
-        name: "neg",
-        export: true,
-        params: [ { name: "number", type: Valtype.f32 } ],
-        ret: [Valtype.f32],
-        code: [emptyArray,
+        ]), new InfixOp("-", true,
+        [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
+        [Valtype.f32],
+        [emptyArray,
+            Op.get_local, unsignedLEB128(0),
+            Op.get_local, unsignedLEB128(1),
+            Op.f32_sub,
+            Op.end
+        ]), new UnaryOp("-", true,
+        [ { name: "number", type: Valtype.f32 } ],
+        [Valtype.f32],
+        [emptyArray,
             Op.get_local, unsignedLEB128(0),
             Op.f32_neg,
             Op.end
-        ]
-    }]
+        ]),
+    ]
 };
 
 function filterTypes(params) {
@@ -179,8 +233,8 @@ function filterTypes(params) {
 
 // start of user defined functions:
 function functionTypes() {
-    let functionBytes = [Model.functions.length];
-    Model.functions.forEach(function(func) {
+    let functionBytes = [Model.funcs.length];
+    Model.funcs.forEach(function(func) {
         functionBytes.push(functionType);
         functionBytes = functionBytes.concat(encodeVector(filterTypes(func.params)));
         functionBytes = functionBytes.concat(encodeVector(func.ret));
@@ -193,8 +247,8 @@ function typeSection() {
 }
 
 function addCode() {
-    let code = [Model.functions.length];
-    Model.functions.forEach(function(func) {
+    let code = [Model.funcs.length];
+    Model.funcs.forEach(function(func) {
         code = code.concat(encodeVector(flatten(func.code)));
     });
     return code;
@@ -206,7 +260,7 @@ function functionBody() {
 
 function funcSection() {
     let functionTypesIndices = [];
-    Model.functions.forEach(function(func, index) {
+    Model.funcs.forEach(function(func, index) {
         functionTypesIndices.push(index);
     });
 
@@ -215,7 +269,7 @@ function funcSection() {
 
 function exportSection() {
     let exportBytes = [0x00]; // count of export entries
-    Model.functions.forEach(function(func, index) {
+    Model.funcs.forEach(function(func, index) {
         if(func.export) {
             exportBytes[0]++;
             exportBytes = exportBytes.concat(encodeString(func.name));
@@ -294,33 +348,10 @@ function build() {
 // RENDER
 
 function renderCode(funcIndex) {
-    let codeArray = Model.functions[funcIndex].code;
-    let codeElement = document.getElementById('code');
-    codeElement.innerText = '';
-    for(i=0; i<codeArray.length; i++) {
-       if(i === 0) {
-           if(codeArray[i] > emptyArray) {
-               let localsElement = document.createElement('div');
-               localsElement.innerText = 'multiple locals: not implemented!';
-               codeElement.append(localsElement);
-           }
-       }
-       if(i > 0) {
-           let lineElement = document.createElement('div');
-           let decoded = decodeOp(codeArray[i]);
-           if(decoded.op !== 'end') {
-               let lineText = decoded.op;
-               for(j=0; j<decoded.immediate; j++) {
-                   lineText += ' ' + codeArray[++i];
-               }
-               lineElement.innerText = lineText;
-               codeElement.append(lineElement);
-           }
-       }
-    }
+    Model.funcs[funcIndex].render(document.getElementById('code'));
 }
 
-function renderFunction(funcModel, funcIndex) {
+function renderFunctionOptions(funcModel, funcIndex) {
     let functions = document.getElementById("functions");
     let funcElement = document.createElement("option");
     funcElement.value = funcIndex;
@@ -342,7 +373,7 @@ function renderFunction(funcModel, funcIndex) {
 }
 
 function render() {
-    Model.functions.forEach(function (func, index) {
-        renderFunction(func, index);
+    Model.funcs.forEach(function (func, index) {
+        renderFunctionOptions(func, index);
     });
 }
