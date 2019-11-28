@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DomSpec ComEd</title>
+    <script type="text/javascript">
+        let memory = new WebAssembly.Memory({initial:10, maximum:100});
+        WebAssembly.instantiateStreaming(fetch('compiler.wasm'), { js: { mem: memory } })
+            .then(obj => {
+                let i32 = new Uint32Array(memory.buffer);
+                for (let i = 0; i < 10; i++) {
+                    i32[i] = i;
+                }
+                let sum = obj.instance.exports.accumulate(0, 10);
+                console.log(sum);
+            });
+    </script>
+</head>
+<body>
+    <H1>Domain Specific Component Editor</H1>
+</body>
+</html>
