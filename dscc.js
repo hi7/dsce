@@ -26,7 +26,7 @@ Valtype = {
     f32: 0x7d
 };
 
-function valtypeToString(valtype) {
+function decodeValtype(valtype) {
     switch (valtype) {
         case 0x7f: return "i32";
         case 0x7d: return "f32";
@@ -41,6 +41,17 @@ Op = {
     f32_add: 0x92,
     f32_max: 0x97,
 };
+
+function decodeOp(op) {
+    switch (op) {
+        case 0x0b: return { op: "end", immediate: 0, paramCount: 1  };
+        case 0x20: return { op: "get_local", immediate: 1, paramCount: 0 };
+        case 0x8c: return { op: "f32.neg", immediate: 0, paramCount: 1 };
+        case 0x92: return { op: "f32.add", immediate: 0, paramCount: 2 };
+        case 0x97: return { op: "f32.max", immediate: 0, paramCount: 2 };
+        default: return { op: ">>" + op + "<<", immediate: undefined, paramCount: undefined };
+    }
+}
 
 ExportType = {
     func: 0x00,
@@ -283,8 +294,30 @@ function build() {
 // RENDER
 
 function renderCode(funcIndex) {
-    console.log(Model.functions[funcIndex].code);
+    let codeArray = Model.functions[funcIndex].code;
     let codeElement = document.getElementById('code');
+    codeElement.innerText = '';
+    for(i=0; i<codeArray.length; i++) {
+       if(i === 0) {
+           if(codeArray[i] > emptyArray) {
+               let localsElement = document.createElement('div');
+               localsElement.innerText = 'multiple locals: not implemented!';
+               codeElement.append(localsElement);
+           }
+       }
+       if(i > 0) {
+           let lineElement = document.createElement('div');
+           let decoded = decodeOp(codeArray[i]);
+           if(decoded.op !== 'end') {
+               let lineText = decoded.op;
+               for(j=0; j<decoded.immediate; j++) {
+                   lineText += ' ' + codeArray[++i];
+               }
+               lineElement.innerText = lineText;
+               codeElement.append(lineElement);
+           }
+       }
+    }
 }
 
 function renderFunction(funcModel, funcIndex) {
@@ -299,8 +332,8 @@ function renderFunction(funcModel, funcIndex) {
     funcElement.append(funcNameSpan);
     funcModel.params.forEach(function(param, index, arr) {
         let funcParamNameSpan = document.createElement("span");
-        funcParamNameSpan.innerHTML = param.name + ':' + valtypeToString(param.type)
-            + (index < arr.length - 1 ? ', ' : `) &rarr; ${valtypeToString(funcModel.ret[0])}`);
+        funcParamNameSpan.innerHTML = param.name + ':' + decodeValtype(param.type)
+            + (index < arr.length - 1 ? ', ' : `) &rarr; ${decodeValtype(funcModel.ret[0])}`);
         funcParamNameSpan.classList.add("param-name");
         funcElement.append(funcParamNameSpan);
     });

@@ -5,8 +5,8 @@
     <title>DomSpec ComEd</title>
     <script src="dscc.js"></script>
     <style>
-        .param-name {
-            margin-left: .5em;
+        #code {
+            margin-left: 1em;
         }
     </style>
 </head>
@@ -19,6 +19,7 @@
 
 <script type="text/javascript">
     render();
+    renderCode(0);
     build();
     /*let memory = new WebAssembly.Memory({initial:10, maximum:100});
     WebAssembly.instantiateStreaming(fetch('compiler.wasm'), { js: { mem: memory } })
