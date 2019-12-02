@@ -171,9 +171,11 @@ function numberToString(type, value) {
 class AstNode {
     /**
      * @param {Valtype} type
+     * @param {string} name
      */
-    constructor(type) {
+    constructor(type, name) {
         this.type = type;
+        this.name = name;
     }
 
     /**
@@ -185,10 +187,11 @@ class AstNode {
 class AstConstant extends AstNode {
     /**
      * @param {Valtype} type
+     * @param {string} name
      * @param value
      */
-    constructor(type, value) {
-        super(type);
+    constructor(type, name, value) {
+        super(type, name);
         this.value = value;
     }
 
@@ -209,13 +212,12 @@ class AstConstant extends AstNode {
 class AstVariable extends AstNode {
     /**
      * @param {Valtype} type
-     * @param {number} index
      * @param {string} name
+     * @param {number} index
      */
-    constructor(type, index, name) {
-        super(type);
+    constructor(type, name, index) {
+        super(type, name);
         this.index = index;
-        this.name = name;
     }
 
     /**
@@ -235,17 +237,18 @@ class AstVariable extends AstNode {
 class AstUnary extends AstNode {
     /**
      * @param {Valtype} type
+     * @param {string} name
      * @param {WasmNode} wasmNode
      * @param {AstNode} node
      */
-    constructor(type, wasmNode, node) {
-        super(type);
+    constructor(type, name, wasmNode, node) {
+        super(type, name);
         this.wasmNode = wasmNode;
         this.node = node;
     }
 
     params() {
-        return [ { name: "a", type: this.type } ];
+        return [ this.node ];
     }
 
     /**
@@ -269,19 +272,20 @@ class AstUnary extends AstNode {
 class AstBinary extends AstNode {
     /**
      * @param {Valtype} type
+     * @param {string} name
      * @param {WasmNode} wasmNode
      * @param {AstNode} lNode
      * @param {AstNode} rNode
      */
-    constructor(type, wasmNode, lNode, rNode) {
-        super(type);
+    constructor(type, name, wasmNode, lNode, rNode) {
+        super(type, name);
         this.wasmNode = wasmNode;
         this.lNode = lNode;
         this.rNode = rNode;
     }
 
     params() {
-        return [ { name: "a", type: this.type }, { name: "b", type: this.type } ];
+        return [ this.lNode, this.rNode ];
     }
 
     /**
@@ -294,6 +298,43 @@ class AstBinary extends AstNode {
         this.lNode.render(target);
         target.append(binary);
         this.rNode.render(target);
+    }
+
+    code() {
+        let code = flatten(this.lNode.code());
+        code = code.concat(flatten(this.rNode.code()));
+        code.push(this.wasmNode.wasmOp);
+        return code;
+    }
+}
+
+class AstFunc extends AstNode {
+    /**
+     * @param {Valtype} type
+     * @param {string} name
+     * @param {WasmNode} wasmNode
+     * @param {[AstNode]} paramNodes
+     */
+    constructor(type, name, wasmNode, paramNodes) {
+        super(type, name);
+        this.wasmNodes = wasmNode;
+        this.paramNodes = paramNodes;
+    }
+
+    params() {
+        return this.paramNodes;
+    }
+
+    /**
+     * @param {HTMLElement} target
+     */
+    render(target) {
+        let binary = document.createElement("span");
+        binary.innerHTML = this.wasmNode.symbol;
+        target.append(binary);
+        this.paramNodes.forEach(function (node) {
+            node.render(target);
+        });
     }
 
     code() {
@@ -322,106 +363,58 @@ const Model = {
       name: "neg",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstUnary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_neg, "-"),
-          new AstVariable(Valtype.f32, 0, "a"),
+      ast: new AstUnary(Valtype.f32, "neg", new WasmNode(Valtype.f32, WasmOp.f32_neg, "-"),
+          new AstVariable(Valtype.f32, "a", 0),
       )
   }, {
       name: "add",
       public: true,
       returnTypes: [Valtype.f32],
-      ast:  new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
-          new AstVariable(Valtype.f32, 0, "a"),
-          new AstVariable(Valtype.f32, 1, "b")
+      ast:  new AstBinary(Valtype.f32, "add", new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
+          new AstVariable(Valtype.f32, "a", 0),
+          new AstVariable(Valtype.f32, "b", 1)
       )
   }, {
       name: "sub",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_sub, "-"),
-          new AstVariable(Valtype.f32, 0, "a"),
-          new AstVariable(Valtype.f32, 1, "b")
+      ast: new AstBinary(Valtype.f32, "sub", new WasmNode(Valtype.f32, WasmOp.f32_sub, "-"),
+          new AstVariable(Valtype.f32, "a", 0),
+          new AstVariable(Valtype.f32, "b", 1)
       )
   }, {
       name: "mul",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_mul, "&sdot;"),
-          new AstVariable(Valtype.f32, 0, "a"),
-          new AstVariable(Valtype.f32, 1, "b")
+      ast: new AstBinary(Valtype.f32, "mul", new WasmNode(Valtype.f32, WasmOp.f32_mul, "&sdot;"),
+          new AstVariable(Valtype.f32, "a", 0),
+          new AstVariable(Valtype.f32, "b", 1)
       )
   }, {
       name: "div",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_div, "&divide;"),
-          new AstVariable(Valtype.f32, 0, "a"),
-          new AstVariable(Valtype.f32, 1, "b")
+      ast: new AstBinary(Valtype.f32, "div", new WasmNode(Valtype.f32, WasmOp.f32_div, "&divide;"),
+          new AstVariable(Valtype.f32, "a", 0),
+          new AstVariable(Valtype.f32, "b", 1)
       )
   }, {
       name: "max",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_max, "max"),
-          new AstVariable(Valtype.f32, 0, "a"),
-          new AstVariable(Valtype.f32, 1, "b")
+      ast: new AstBinary(Valtype.f32, "max", new WasmNode(Valtype.f32, WasmOp.f32_max, "max"),
+          new AstVariable(Valtype.f32, "a", 0),
+          new AstVariable(Valtype.f32, "b", 1)
       )
   } ]
 };
-    new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
-        new AstVariable(Valtype.f32, 0, "a"),
-        new AstVariable(Valtype.f32, 1, "b")
-    );
+
+new AstBinary(Valtype.f32, "add", new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
+    new AstVariable(Valtype.f32, "a", 0),
+    new AstVariable(Valtype.f32, "b", 1)
+);
 
 // *****************************************
-class UnaryOp {
-    constructor(name, opSymbol, exp, params, ret, code) {
-        this.name = name;
-        this.opSymbol = opSymbol;
-        this.export = exp;
-        this.params = params;
-        this.ret = ret;
-        this.code = code;
-    }
-    renderLocals() {
-        if(this.code[0] > emptyArray) {
-            let localsElement = document.createElement('div');
-            localsElement.innerText = 'multiple locals: not implemented!';
-            target.append(localsElement);
-        }
-    }
-    render(target) { // postfix
-        target.innerHTML = this.opSymbol + this.params[0].name;
-    }
-    renderWasm(target) {
-        target.innerText = '';
-        for(let i=0; i<this.code.length; i++) {
-            if(i === 0) {
-                this.renderLocals();
-            }
-            if(i > 0) {
-                let lineElement = document.createElement('div');
-                let decoded = decodeWasmOp(this.code[i]);
-                if(decoded.op !== 'end') {
-                    let lineText = decoded.op;
-                    for(let j=0; j<decoded.immediate; j++) {
-                        lineText += ' ' + this.code[++i];
-                    }
-                    lineElement.innerText = lineText;
-                    target.append(lineElement);
-                }
-            }
-        }
-    }
-}
-
-class BinaryOp extends UnaryOp {
-    constructor(name, opSymbol, exp, params, ret, code) {
-        super(name, opSymbol, exp, params, ret, code);
-    }
-    render(target) { // infix
-        target.innerHTML = this.params[0].name + this.opSymbol + this.params[1].name;
-    }
-}
 
 function filterTypes(params) {
     let types = [];
