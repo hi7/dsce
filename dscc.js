@@ -34,7 +34,7 @@ function decodeValtype(valtype) {
     }
 }
 
-Op = {
+WasmOp = {
     end: 0x0b,
     get_local: 0x20,
     f32_const: 0x43,
@@ -46,7 +46,7 @@ Op = {
     f32_max: 0x97,
 };
 
-function decodeOp(op) {
+function decodeWasmOp(op) {
     switch (op) {
         case 0x0b: return { op: "end", immediate: 0, paramCount: 1  };
         case 0x20: return { op: "get_local", immediate: 1, paramCount: 0 };
@@ -202,7 +202,7 @@ class AstConstant extends AstNode {
     }
 
     code() {
-        return [Op.f32_const, unsignedLEB128(this.value)]
+        return [WasmOp.f32_const, unsignedLEB128(this.value)]
     }
 }
 
@@ -228,19 +228,19 @@ class AstVariable extends AstNode {
     }
 
     code() {
-        return [Op.get_local, this.index]
+        return [WasmOp.get_local, this.index]
     }
 }
 
 class AstUnary extends AstNode {
     /**
      * @param {Valtype} type
-     * @param {WasmOperator} wasmOp
+     * @param {WasmNode} wasmNode
      * @param {AstNode} node
      */
-    constructor(type, wasmOp, node) {
+    constructor(type, wasmNode, node) {
         super(type);
-        this.wasmOp = wasmOp;
+        this.wasmNode = wasmNode;
         this.node = node;
     }
 
@@ -253,7 +253,7 @@ class AstUnary extends AstNode {
      */
     render(target) {
         let unary = document.createElement("span");
-        unary.innerHTML = this.wasmOp.symbol;
+        unary.innerHTML = this.wasmNode.symbol;
 
         target.append(unary);
         this.node.render(target);
@@ -261,7 +261,7 @@ class AstUnary extends AstNode {
 
     code() {
         let code = flatten(this.node.code());
-        code.push(this.wasmOp.wasmOp);
+        code.push(this.wasmNode.wasmOp);
         return code;
     }
 }
@@ -269,13 +269,13 @@ class AstUnary extends AstNode {
 class AstBinary extends AstNode {
     /**
      * @param {Valtype} type
-     * @param {WasmOperator} wasmOp
+     * @param {WasmNode} wasmNode
      * @param {AstNode} lNode
      * @param {AstNode} rNode
      */
-    constructor(type, wasmOp, lNode, rNode) {
+    constructor(type, wasmNode, lNode, rNode) {
         super(type);
-        this.wasmOp = wasmOp;
+        this.wasmNode = wasmNode;
         this.lNode = lNode;
         this.rNode = rNode;
     }
@@ -289,7 +289,7 @@ class AstBinary extends AstNode {
      */
     render(target) {
         let binary = document.createElement("span");
-        binary.innerHTML = this.wasmOp.symbol;
+        binary.innerHTML = this.wasmNode.symbol;
 
         this.lNode.render(target);
         target.append(binary);
@@ -299,15 +299,15 @@ class AstBinary extends AstNode {
     code() {
         let code = flatten(this.lNode.code());
         code = code.concat(flatten(this.rNode.code()));
-        code.push(this.wasmOp.wasmOp);
+        code.push(this.wasmNode.wasmOp);
         return code;
     }
 }
 
-class WasmOperator {
+class WasmNode {
     /**
      * @param {Valtype} wasmType
-     * @param {string} wasmOp
+     * @param {WasmOp} wasmOp
      * @param {string} symbol
      */
     constructor(wasmType, wasmOp, symbol) {
@@ -322,14 +322,14 @@ const Model = {
       name: "neg",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstUnary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_neg, "-"),
+      ast: new AstUnary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_neg, "-"),
           new AstVariable(Valtype.f32, 0, "a"),
       )
   }, {
       name: "add",
       public: true,
       returnTypes: [Valtype.f32],
-      ast:  new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_add, "+"),
+      ast:  new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
@@ -337,7 +337,7 @@ const Model = {
       name: "sub",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_sub, "-"),
+      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_sub, "-"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
@@ -345,7 +345,7 @@ const Model = {
       name: "mul",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_mul, "&sdot;"),
+      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_mul, "&sdot;"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
@@ -353,7 +353,7 @@ const Model = {
       name: "div",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_div, "&divide;"),
+      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_div, "&divide;"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
@@ -361,13 +361,13 @@ const Model = {
       name: "max",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_max, "max"),
+      ast: new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_max, "max"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
   } ]
 };
-    new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_add, "+"),
+    new AstBinary(Valtype.f32, new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
         new AstVariable(Valtype.f32, 0, "a"),
         new AstVariable(Valtype.f32, 1, "b")
     );
@@ -400,7 +400,7 @@ class UnaryOp {
             }
             if(i > 0) {
                 let lineElement = document.createElement('div');
-                let decoded = decodeOp(this.code[i]);
+                let decoded = decodeWasmOp(this.code[i]);
                 if(decoded.op !== 'end') {
                     let lineText = decoded.op;
                     for(let j=0; j<decoded.immediate; j++) {
@@ -451,7 +451,7 @@ function addCode() {
     Model.funcs.forEach(function(func) {
         let funcCode = [emptyArray];
         funcCode = funcCode.concat(func.ast.code());
-        funcCode.push(Op.end);
+        funcCode.push(WasmOp.end);
         code = code.concat(encodeVector(flatten(funcCode)));
     });
     return code;
