@@ -14,10 +14,13 @@
     <H1>Domain Specific Component Editor</H1>
     <select id="functions" oninput="renderCode(this.value);"></select>
     <div id="code"></div>
+    <div id="ast"></div>
 </body>
 </html>
 
 <script type="text/javascript">
+    //Ast.render(document.getElementById('ast'));
+
     render();
     renderCode(0);
     build();

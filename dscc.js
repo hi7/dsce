@@ -37,9 +37,11 @@ function decodeValtype(valtype) {
 Op = {
     end: 0x0b,
     get_local: 0x20,
+    f32_const: 0x43,
     f32_neg: 0x8c,
     f32_add: 0x92,
     f32_sub: 0x93,
+    f32_mul: 0x94,
     f32_max: 0x97,
 };
 
@@ -47,9 +49,11 @@ function decodeOp(op) {
     switch (op) {
         case 0x0b: return { op: "end", immediate: 0, paramCount: 1  };
         case 0x20: return { op: "get_local", immediate: 1, paramCount: 0 };
+        case 0x43: return { op: "f32.const", immediate: 0, paramCount: 1 };
         case 0x8c: return { op: "f32.neg", immediate: 0, paramCount: 1 };
         case 0x92: return { op: "f32.add", immediate: 0, paramCount: 2 };
         case 0x93: return { op: "f32.sub", immediate: 0, paramCount: 2 };
+        case 0x94: return { op: "f32.mul", immediate: 0, paramCount: 2 };
         case 0x97: return { op: "f32.max", immediate: 0, paramCount: 2 };
         default: return { op: ">>" + op + "<<", immediate: undefined, paramCount: undefined };
     }
@@ -138,7 +142,6 @@ function encodeVector(array) {
 }
 
 /**
- *
  * @param {number} section
  * @param {[]} data
  */
@@ -146,10 +149,201 @@ function createSection(section, data) {
     return [section].concat(data);
 }
 
-class UnaryOp {
-    constructor(name, op, exp, params, ret, code) {
+
+// ******* formating ********************
+
+
+function numberToString(type, value) {
+    if((type === Valtype.f32) && (value % 1 === 0)) {
+        return `${value}.0`
+    } else {
+        return `${value}`;
+    }
+}
+
+// **************************** AST *********************************
+
+/**
+ * Ast base node
+ */
+class AstNode {
+    /**
+     * @param {Valtype} type
+     */
+    constructor(type) {
+        this.type = type;
+    }
+
+    /**
+     * @param {HTMLElement} target
+     */
+    render(target) {}
+}
+
+class AstConstant extends AstNode {
+    /**
+     * @param {Valtype} type
+     * @param value
+     */
+    constructor(type, value) {
+        super(type);
+        this.value = value;
+    }
+
+    /**
+     * @param {HTMLElement} target
+     */
+    render(target) {
+        let constant = document.createElement("span");
+        console.log(numberToString(this.type, this.value));
+        constant.innerHTML = numberToString(this.type, this.value);
+        target.append(constant);
+    }
+
+    code() {
+        return [Op.f32_const, unsignedLEB128(this.value)]
+    }
+}
+
+class AstVariable extends AstNode {
+    /**
+     * @param {Valtype} type
+     * @param {number} index
+     * @param {string} name
+     */
+    constructor(type, index, name) {
+        super(type);
+        this.index = index;
         this.name = name;
-        this.op = op;
+    }
+
+    /**
+     * @param {HTMLElement} target
+     */
+    render(target) {}
+
+    code() {
+        return [Op.get_local, this.index]
+    }
+}
+
+class AstUnary extends AstNode {
+    /**
+     * @param {Valtype} type
+     * @param {string} wasmOp
+     * @param {AstNode} node
+     */
+    constructor(type, wasmOp, node) {
+        super(type);
+        this.wasmOp = wasmOp;
+        this.node = node;
+    }
+
+    params() {
+        return [ { name: "a", type: this.type } ];
+    }
+
+    /**
+     * @param {HTMLElement} target
+     */
+    render(target) {
+
+    }
+
+    code() {
+        let code = flatten(this.node.code());
+        code.push(Op[this.wasmOp.wasmOp]);
+        return code;
+    }
+}
+
+class AstBinary extends AstNode {
+    /**
+     * @param {Valtype} type
+     * @param {WasmOperator} wasmOp
+     * @param {AstNode} lNode
+     * @param {AstNode} rNode
+     */
+    constructor(type, wasmOp, lNode, rNode) {
+        super(type);
+        this.wasmOp = wasmOp;
+        this.lNode = lNode;
+        this.rNode = rNode;
+    }
+
+    params() {
+        return [ { name: "a", type: this.type }, { name: "b", type: this.type } ];
+    }
+
+    /**
+     * @param {HTMLElement} target
+     */
+    render(target) {
+        let binary = document.createElement("span");
+        binary.innerHTML = this.wasmOp.symbol;
+
+        this.lNode.render(target);
+        target.append(binary);
+        this.rNode.render(target);
+    }
+
+    code() {
+        let code = flatten(this.lNode.code());
+        code = code.concat(flatten(this.rNode.code()));
+        code.push(Op[this.wasmOp.wasmOp]);
+        return code;
+    }
+}
+
+class WasmOperator {
+    /**
+     * @param {Valtype} wasmType
+     * @param {string} wasmOp
+     * @param {string} symbol
+     */
+    constructor(wasmType, wasmOp, symbol) {
+        this.wasmType = wasmType;
+        this.wasmOp = wasmOp;
+        this.symbol = symbol;
+    }
+}
+
+const Model = {
+  funcs: [ {
+      name: "add",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast:  new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_add", "+"),
+          new AstVariable(Valtype.f32, 0, "a"),
+          new AstVariable(Valtype.f32, 1, "b")
+      )
+  }, {
+      name: "sub",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_sub", "-"),
+          new AstVariable(Valtype.f32, 0, "a"),
+          new AstVariable(Valtype.f32, 1, "b")
+      )
+  }, {
+      name: "neg",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstUnary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_neg", "-"),
+          new AstVariable(Valtype.f32, 0, "a"),
+      )
+  } ]
+};
+    new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_add", "+"),
+        new AstVariable(Valtype.f32, 0, "a"),
+        new AstVariable(Valtype.f32, 1, "b")
+    );
+
+// *****************************************
+class UnaryOp {
+    constructor(name, opSymbol, exp, params, ret, code) {
+        this.name = name;
+        this.opSymbol = opSymbol;
         this.export = exp;
         this.params = params;
         this.ret = ret;
@@ -163,7 +357,7 @@ class UnaryOp {
         }
     }
     render(target) { // postfix
-        target.innerText = this.op + this.params[0].name;
+        target.innerHTML = this.opSymbol + this.params[0].name;
     }
     renderWasm(target) {
         target.innerText = '';
@@ -187,25 +381,32 @@ class UnaryOp {
     }
 }
 
-class InfixOp extends UnaryOp {
-    constructor(name, op, exp, params, ret, code) {
-        super(name, op, exp, params, ret, code);
+class BinaryOp extends UnaryOp {
+    constructor(name, opSymbol, exp, params, ret, code) {
+        super(name, opSymbol, exp, params, ret, code);
     }
     render(target) { // infix
-        target.innerText = this.params[0].name + this.op + this.params[1].name;
+        target.innerHTML = this.params[0].name + this.opSymbol + this.params[1].name;
     }
 }
 
-Model = {
-    funcs: [ new InfixOp("add", "+", true,
+/*
+Model2 = {
+    funcs: [ new BinaryOp("add", "+", true,
+        [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
+        [Valtype.f32],
+        [Op.get_local, unsignedLEB128(0),
+            Op.get_local, unsignedLEB128(1),
+            Op.f32_add,
+        ]), new BinaryOp("sub", "-", true,
         [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
         [Valtype.f32],
         [emptyArray,
             Op.get_local, unsignedLEB128(0),
             Op.get_local, unsignedLEB128(1),
-            Op.f32_add,
+            Op.f32_sub,
             Op.end
-        ]), new InfixOp("sub", "-", true,
+        ]), new BinaryOp("mul", "&sdot;", true,
         [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
         [Valtype.f32],
         [emptyArray,
@@ -222,7 +423,7 @@ Model = {
             Op.end
         ]),
     ]
-};
+};*/
 
 function filterTypes(params) {
     let types = [];
@@ -237,8 +438,8 @@ function functionTypes() {
     let functionBytes = [Model.funcs.length];
     Model.funcs.forEach(function(func) {
         functionBytes.push(functionType);
-        functionBytes = functionBytes.concat(encodeVector(filterTypes(func.params)));
-        functionBytes = functionBytes.concat(encodeVector(func.ret));
+        functionBytes = functionBytes.concat(encodeVector(filterTypes(func.ast.params())));
+        functionBytes = functionBytes.concat(encodeVector(func.returnTypes));
     });
     return functionBytes;
 }
@@ -250,7 +451,10 @@ function typeSection() {
 function addCode() {
     let code = [Model.funcs.length];
     Model.funcs.forEach(function(func) {
-        code = code.concat(encodeVector(flatten(func.code)));
+        let funcCode = [emptyArray];
+        funcCode = funcCode.concat(func.ast.code());
+        funcCode.push(Op.end);
+        code = code.concat(encodeVector(flatten(/*func.code*/ funcCode)));
     });
     return code;
 }
@@ -271,7 +475,7 @@ function funcSection() {
 function exportSection() {
     let exportBytes = [0x00]; // count of export entries
     Model.funcs.forEach(function(func, index) {
-        if(func.export) {
+        if(func.public) {
             exportBytes[0]++;
             exportBytes = exportBytes.concat(encodeString(func.name));
             exportBytes.push(ExportType.func);
@@ -342,14 +546,14 @@ function build() {
             instance = obj.instance;
             let func = instance.exports;
             console.log(func);
-            console.log(func.neg(func.add(21.25, 20.75)));
+            console.log(func.neg(func.add(-21.25, -20.75)));
         });
 }
 
 // RENDER
 
 function renderCode(funcIndex) {
-    Model.funcs[funcIndex].render(document.getElementById('code'));
+    Model.funcs[funcIndex].ast.render(document.getElementById('code'));
 }
 
 function renderFunctionOptions(funcModel, funcIndex) {
@@ -362,10 +566,10 @@ function renderFunctionOptions(funcModel, funcIndex) {
     funcElement.append(funcNameSpan);
 
     funcElement.append(funcNameSpan);
-    funcModel.params.forEach(function(param, index, arr) {
+    funcModel.ast.params().forEach(function(param, index, arr) {
         let funcParamNameSpan = document.createElement("span");
         funcParamNameSpan.innerHTML = param.name + ':' + decodeValtype(param.type)
-            + (index < arr.length - 1 ? ', ' : `) &rarr; ${decodeValtype(funcModel.ret[0])}`);
+            + (index < arr.length - 1 ? ', ' : `) &rarr; ${decodeValtype(funcModel.returnTypes[0])}`);
         funcParamNameSpan.classList.add("param-name");
         funcElement.append(funcParamNameSpan);
     });
@@ -375,6 +579,7 @@ function renderFunctionOptions(funcModel, funcIndex) {
 
 function render() {
     Model.funcs.forEach(function (func, index) {
+        //func.ast.render(document.getElementById("code"));
         renderFunctionOptions(func, index);
     });
 }
