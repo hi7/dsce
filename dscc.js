@@ -519,17 +519,22 @@ function logHex(bytes) {
  * @param {Uint8Array} wasm
  */
 function hexDump(wasm) {
-    let indices = '';
-    for(let i=0; i<wasm.length; i++) {
-        indices += twoDigits(i) + ' '
-    }
-    console.log(indices);
+    const LINE_LENGTH = 50;
+    let offset = 0;
+    while(offset < wasm.length) {
+        let indices = '';
+        for(let i=offset; i<Math.min(offset+LINE_LENGTH, wasm.length); i++) {
+            indices += twoDigits(i) + ' '
+        }
+        console.log(indices);
 
-    let bytes = '';
-    for(let i=0; i<wasm.length; i++) {
-        bytes += toHex(wasm[i]) + ' '
+        let bytes = '';
+        for(let i=offset; i<Math.min(offset+LINE_LENGTH, wasm.length); i++) {
+            bytes += toHex(wasm[i]) + ' '
+        }
+        console.log(bytes);
+        offset += LINE_LENGTH;
     }
-    console.log(bytes);
 }
 
 function build() {
