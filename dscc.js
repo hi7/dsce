@@ -42,6 +42,7 @@ Op = {
     f32_add: 0x92,
     f32_sub: 0x93,
     f32_mul: 0x94,
+    f32_div: 0x95,
     f32_max: 0x97,
 };
 
@@ -54,6 +55,7 @@ function decodeOp(op) {
         case 0x92: return { op: "f32.add", immediate: 0, paramCount: 2 };
         case 0x93: return { op: "f32.sub", immediate: 0, paramCount: 2 };
         case 0x94: return { op: "f32.mul", immediate: 0, paramCount: 2 };
+        case 0x95: return { op: "f32.div", immediate: 0, paramCount: 2 };
         case 0x97: return { op: "f32.max", immediate: 0, paramCount: 2 };
         default: return { op: ">>" + op + "<<", immediate: undefined, paramCount: undefined };
     }
@@ -259,7 +261,7 @@ class AstUnary extends AstNode {
 
     code() {
         let code = flatten(this.node.code());
-        code.push(Op[this.wasmOp.wasmOp]);
+        code.push(this.wasmOp.wasmOp);
         return code;
     }
 }
@@ -297,7 +299,7 @@ class AstBinary extends AstNode {
     code() {
         let code = flatten(this.lNode.code());
         code = code.concat(flatten(this.rNode.code()));
-        code.push(Op[this.wasmOp.wasmOp]);
+        code.push(this.wasmOp.wasmOp);
         return code;
     }
 }
@@ -317,10 +319,17 @@ class WasmOperator {
 
 const Model = {
   funcs: [ {
+      name: "neg",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstUnary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_neg, "-"),
+          new AstVariable(Valtype.f32, 0, "a"),
+      )
+  }, {
       name: "add",
       public: true,
       returnTypes: [Valtype.f32],
-      ast:  new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_add", "+"),
+      ast:  new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_add, "+"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
@@ -328,20 +337,37 @@ const Model = {
       name: "sub",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_sub", "-"),
+      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_sub, "-"),
           new AstVariable(Valtype.f32, 0, "a"),
           new AstVariable(Valtype.f32, 1, "b")
       )
   }, {
-      name: "neg",
+      name: "mul",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstUnary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_neg", "-"),
+      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_mul, "&sdot;"),
           new AstVariable(Valtype.f32, 0, "a"),
+          new AstVariable(Valtype.f32, 1, "b")
+      )
+  }, {
+      name: "div",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_div, "&divide;"),
+          new AstVariable(Valtype.f32, 0, "a"),
+          new AstVariable(Valtype.f32, 1, "b")
+      )
+  }, {
+      name: "max",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_max, "max"),
+          new AstVariable(Valtype.f32, 0, "a"),
+          new AstVariable(Valtype.f32, 1, "b")
       )
   } ]
 };
-    new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, "f32_add", "+"),
+    new AstBinary(Valtype.f32, new WasmOperator(Valtype.f32, Op.f32_add, "+"),
         new AstVariable(Valtype.f32, 0, "a"),
         new AstVariable(Valtype.f32, 1, "b")
     );
@@ -397,41 +423,6 @@ class BinaryOp extends UnaryOp {
     }
 }
 
-/*
-Model2 = {
-    funcs: [ new BinaryOp("add", "+", true,
-        [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
-        [Valtype.f32],
-        [Op.get_local, unsignedLEB128(0),
-            Op.get_local, unsignedLEB128(1),
-            Op.f32_add,
-        ]), new BinaryOp("sub", "-", true,
-        [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
-        [Valtype.f32],
-        [emptyArray,
-            Op.get_local, unsignedLEB128(0),
-            Op.get_local, unsignedLEB128(1),
-            Op.f32_sub,
-            Op.end
-        ]), new BinaryOp("mul", "&sdot;", true,
-        [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
-        [Valtype.f32],
-        [emptyArray,
-            Op.get_local, unsignedLEB128(0),
-            Op.get_local, unsignedLEB128(1),
-            Op.f32_sub,
-            Op.end
-        ]), new UnaryOp("neg", "-", true,
-        [ { name: "number", type: Valtype.f32 } ],
-        [Valtype.f32],
-        [emptyArray,
-            Op.get_local, unsignedLEB128(0),
-            Op.f32_neg,
-            Op.end
-        ]),
-    ]
-};*/
-
 function filterTypes(params) {
     let types = [];
     params.forEach(function (param) {
@@ -461,7 +452,7 @@ function addCode() {
         let funcCode = [emptyArray];
         funcCode = funcCode.concat(func.ast.code());
         funcCode.push(Op.end);
-        code = code.concat(encodeVector(flatten(/*func.code*/ funcCode)));
+        code = code.concat(encodeVector(flatten(funcCode)));
     });
     return code;
 }
@@ -556,9 +547,9 @@ function build() {
     WebAssembly.instantiate(wasm, importObject)
         .then(obj => {
             instance = obj.instance;
-            let func = instance.exports;
-            console.log(func);
-            console.log(func.neg(func.add(-21.25, -20.75)));
+            let f = instance.exports;
+            console.log(f);
+            console.log(f.neg(f.mul(2, f.add(-10.25, -10.75))));
         });
 }
 
