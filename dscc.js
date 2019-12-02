@@ -195,7 +195,6 @@ class AstConstant extends AstNode {
      */
     render(target) {
         let constant = document.createElement("span");
-        console.log(numberToString(this.type, this.value));
         constant.innerHTML = numberToString(this.type, this.value);
         target.append(constant);
     }
@@ -220,7 +219,11 @@ class AstVariable extends AstNode {
     /**
      * @param {HTMLElement} target
      */
-    render(target) {}
+    render(target) {
+        let constant = document.createElement("span");
+        constant.innerHTML = this.name;
+        target.append(constant);
+    }
 
     code() {
         return [Op.get_local, this.index]
@@ -230,7 +233,7 @@ class AstVariable extends AstNode {
 class AstUnary extends AstNode {
     /**
      * @param {Valtype} type
-     * @param {string} wasmOp
+     * @param {WasmOperator} wasmOp
      * @param {AstNode} node
      */
     constructor(type, wasmOp, node) {
@@ -247,7 +250,11 @@ class AstUnary extends AstNode {
      * @param {HTMLElement} target
      */
     render(target) {
+        let unary = document.createElement("span");
+        unary.innerHTML = this.wasmOp.symbol;
 
+        target.append(unary);
+        this.node.render(target);
     }
 
     code() {
@@ -558,7 +565,9 @@ function build() {
 // RENDER
 
 function renderCode(funcIndex) {
-    Model.funcs[funcIndex].ast.render(document.getElementById('code'));
+    let codeElement = document.getElementById('code');
+    codeElement.innerText = '';
+    Model.funcs[funcIndex].ast.render(codeElement);
 }
 
 function renderFunctionOptions(funcModel, funcIndex) {
