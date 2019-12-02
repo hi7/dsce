@@ -147,8 +147,9 @@ function createSection(section, data) {
 }
 
 class UnaryOp {
-    constructor(name, exp, params, ret, code) {
+    constructor(name, op, exp, params, ret, code) {
         this.name = name;
+        this.op = op;
         this.export = exp;
         this.params = params;
         this.ret = ret;
@@ -162,7 +163,7 @@ class UnaryOp {
         }
     }
     render(target) { // postfix
-        target.innerText = this.name + this.params[0].name;
+        target.innerText = this.op + this.params[0].name;
     }
     renderWasm(target) {
         target.innerText = '';
@@ -187,16 +188,16 @@ class UnaryOp {
 }
 
 class InfixOp extends UnaryOp {
-    constructor(name, exp, params, ret, code) {
-        super(name, exp, params, ret, code);
+    constructor(name, op, exp, params, ret, code) {
+        super(name, op, exp, params, ret, code);
     }
     render(target) { // infix
-        target.innerText = this.params[0].name + this.name + this.params[1].name;
+        target.innerText = this.params[0].name + this.op + this.params[1].name;
     }
 }
 
 Model = {
-    funcs: [ new InfixOp("+", true,
+    funcs: [ new InfixOp("add", "+", true,
         [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
         [Valtype.f32],
         [emptyArray,
@@ -204,7 +205,7 @@ Model = {
             Op.get_local, unsignedLEB128(1),
             Op.f32_add,
             Op.end
-        ]), new InfixOp("-", true,
+        ]), new InfixOp("sub", "-", true,
         [ { name: "a", type: Valtype.f32 }, { name: "b", type: Valtype.f32 }],
         [Valtype.f32],
         [emptyArray,
@@ -212,7 +213,7 @@ Model = {
             Op.get_local, unsignedLEB128(1),
             Op.f32_sub,
             Op.end
-        ]), new UnaryOp("-", true,
+        ]), new UnaryOp("neg", "-", true,
         [ { name: "number", type: Valtype.f32 } ],
         [Valtype.f32],
         [emptyArray,
