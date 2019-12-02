@@ -357,7 +357,24 @@ class WasmNode {
 
 const Model = {
   funcs: [ {
-      name: "neg",
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstFunc(Valtype.f32, "sigma",
+          [
+              new AstVariable(Valtype.f32, "a", [],0),
+              new AstBinary(Valtype.f32, "add", [
+                  new AstVariable(Valtype.f32, "b", [],1),
+                  new AstVariable(Valtype.f32, "a", [],0)
+              ],
+              new WasmNode(Valtype.f32, WasmOp.f32_add, "+"))
+          ],
+          new WasmNode(Valtype.f32, WasmOp.f32_add, "&sum;"),
+      )
+  }, /*{
+      public: true,
+      returnTypes: [Valtype.f32],
+      ast: new AstConstant(Valtype.f32, "1", 1)
+  },*/ {
       public: true,
       returnTypes: [Valtype.f32],
       ast: new AstUnary(Valtype.f32, "neg",
@@ -365,7 +382,6 @@ const Model = {
           new WasmNode(Valtype.f32, WasmOp.f32_neg, "-"),
       )
   }, {
-      name: "add",
       public: true,
       returnTypes: [Valtype.f32],
       ast:  new AstBinary(Valtype.f32, "add",
@@ -374,7 +390,6 @@ const Model = {
           new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
       )
   }, {
-      name: "sub",
       public: true,
       returnTypes: [Valtype.f32],
       ast: new AstBinary(Valtype.f32, "sub",
@@ -383,7 +398,6 @@ const Model = {
           new WasmNode(Valtype.f32, WasmOp.f32_sub, "-"),
       )
   }, {
-      name: "mul",
       public: true,
       returnTypes: [Valtype.f32],
       ast: new AstBinary(Valtype.f32, "mul",
@@ -392,7 +406,6 @@ const Model = {
           new WasmNode(Valtype.f32, WasmOp.f32_mul, "&sdot;"),
       )
   }, {
-      name: "div",
       public: true,
       returnTypes: [Valtype.f32],
       ast: new AstBinary(Valtype.f32, "div",
@@ -401,7 +414,6 @@ const Model = {
           new WasmNode(Valtype.f32, WasmOp.f32_div, "&divide;"),
       )
   }, {
-      name: "max",
       public: true,
       returnTypes: [Valtype.f32],
       ast: new AstFunc(Valtype.f32, "max",
@@ -411,12 +423,6 @@ const Model = {
       )
   } ]
 };
-
-new AstBinary(Valtype.f32, "add",
-    [new AstVariable(Valtype.f32, "a", [], 0),
-        new AstVariable(Valtype.f32, "b", [], 1)],
-    new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
-);
 
 // *****************************************
 
@@ -472,7 +478,7 @@ function exportSection() {
     Model.funcs.forEach(function(func, index) {
         if(func.public) {
             exportBytes[0]++;
-            exportBytes = exportBytes.concat(encodeString(func.name));
+            exportBytes = exportBytes.concat(encodeString(func.ast.name));
             exportBytes.push(ExportType.func);
             exportBytes.push(index); // function index
         }
@@ -514,7 +520,7 @@ function logHex(bytes) {
  * @param {Uint8Array} wasm
  */
 function hexDump(wasm) {
-    const LINE_LENGTH = 50;
+    const LINE_LENGTH = 40;
     let offset = 0;
     while(offset < wasm.length) {
         let indices = '';
@@ -558,23 +564,28 @@ function renderCode(funcIndex) {
     Model.funcs[funcIndex].ast.render(codeElement);
 }
 
-function renderFunctionOptions(funcModel, funcIndex) {
+function createFunctionOptions(funcModel, funcIndex) {
     let functions = document.getElementById("functions");
     let funcElement = document.createElement("option");
     funcElement.value = funcIndex;
 
     let funcNameSpan = document.createElement("span");
-    funcNameSpan.innerText = funcModel.name + ' (';
+    funcNameSpan.innerText = funcModel.ast.name + ' (';
     funcElement.append(funcNameSpan);
 
     funcElement.append(funcNameSpan);
     funcModel.ast.nodes.forEach(function(param, index, arr) {
         let funcParamNameSpan = document.createElement("span");
         funcParamNameSpan.innerHTML = decodeValtype(param.type) + "." + param.name
-            + (index < arr.length - 1 ? ', ' : `) &rarr; ${decodeValtype(funcModel.returnTypes[0])}`);
+            + (index < arr.length - 1 ? ', ' : '');
         funcParamNameSpan.classList.add("param-name");
         funcElement.append(funcParamNameSpan);
     });
+
+    let funcResultSpan = document.createElement("span");
+    funcResultSpan.innerHTML = `) &rarr; ${decodeValtype(funcModel.returnTypes[0])}`;
+    funcElement.append(funcResultSpan);
+
 
     functions.append(funcElement);
 }
@@ -582,6 +593,6 @@ function renderFunctionOptions(funcModel, funcIndex) {
 function render() {
     Model.funcs.forEach(function (func, index) {
         //func.ast.render(document.getElementById("code"));
-        renderFunctionOptions(func, index);
+        createFunctionOptions(func, index);
     });
 }
