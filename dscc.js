@@ -172,10 +172,12 @@ class AstNode {
     /**
      * @param {Valtype} type
      * @param {string} name
+     * @param {[AstNode]} nodes
      */
-    constructor(type, name) {
+    constructor(type, name, nodes) {
         this.type = type;
         this.name = name;
+        this.nodes = nodes;
     }
 
     /**
@@ -191,7 +193,7 @@ class AstConstant extends AstNode {
      * @param value
      */
     constructor(type, name, value) {
-        super(type, name);
+        super(type, name, []);
         this.value = value;
     }
 
@@ -205,7 +207,7 @@ class AstConstant extends AstNode {
     }
 
     code() {
-        return [WasmOp.f32_const, unsignedLEB128(this.value)]
+        return [WasmOp.f32_const, signedLEB128(this.value)]
     }
 }
 
@@ -213,10 +215,11 @@ class AstVariable extends AstNode {
     /**
      * @param {Valtype} type
      * @param {string} name
+     * @param {[AstNode]} nodes
      * @param {number} index
      */
-    constructor(type, name, index) {
-        super(type, name);
+    constructor(type, name, nodes, index) {
+        super(type, name, nodes);
         this.index = index;
     }
 
@@ -238,17 +241,13 @@ class AstUnary extends AstNode {
     /**
      * @param {Valtype} type
      * @param {string} name
+     * @param {[AstNode]} nodes
      * @param {WasmNode} wasmNode
-     * @param {AstNode} node
      */
-    constructor(type, name, wasmNode, node) {
-        super(type, name);
+    constructor(type, name, nodes, wasmNode) {
+        super(type, name, nodes);
+        if(nodes.length !== 1) alert(`${name} expects 1 parameter but gets ${nodes.length}`);
         this.wasmNode = wasmNode;
-        this.node = node;
-    }
-
-    params() {
-        return [ this.node ];
     }
 
     /**
@@ -259,11 +258,11 @@ class AstUnary extends AstNode {
         unary.innerHTML = this.wasmNode.symbol;
 
         target.append(unary);
-        this.node.render(target);
+        this.nodes[0].render(target);
     }
 
     code() {
-        let code = flatten(this.node.code());
+        let code = flatten(this.nodes[0].code());
         code.push(this.wasmNode.wasmOp);
         return code;
     }
@@ -273,19 +272,13 @@ class AstBinary extends AstNode {
     /**
      * @param {Valtype} type
      * @param {string} name
+     * @param {[AstNode]} nodes
      * @param {WasmNode} wasmNode
-     * @param {AstNode} lNode
-     * @param {AstNode} rNode
      */
-    constructor(type, name, wasmNode, lNode, rNode) {
-        super(type, name);
+    constructor(type, name, nodes, wasmNode) {
+        super(type, name, nodes);
+        if(nodes.length !== 2) alert(`${name} expects 2 parameters but gets ${nodes.length}`);
         this.wasmNode = wasmNode;
-        this.lNode = lNode;
-        this.rNode = rNode;
-    }
-
-    params() {
-        return [ this.lNode, this.rNode ];
     }
 
     /**
@@ -295,14 +288,14 @@ class AstBinary extends AstNode {
         let binary = document.createElement("span");
         binary.innerHTML = this.wasmNode.symbol;
 
-        this.lNode.render(target);
+        this.nodes[0].render(target);
         target.append(binary);
-        this.rNode.render(target);
+        this.nodes[1].render(target);
     }
 
     code() {
-        let code = flatten(this.lNode.code());
-        code = code.concat(flatten(this.rNode.code()));
+        let code = flatten(this.nodes[0].code());
+        code = code.concat(flatten(this.nodes[1].code()));
         code.push(this.wasmNode.wasmOp);
         return code;
     }
@@ -312,17 +305,12 @@ class AstFunc extends AstNode {
     /**
      * @param {Valtype} type
      * @param {string} name
+     * @param {[AstNode]} nodes
      * @param {WasmNode} wasmNode
-     * @param {[AstNode]} paramNodes
      */
-    constructor(type, name, wasmNode, paramNodes) {
-        super(type, name);
-        this.wasmNodes = wasmNode;
-        this.paramNodes = paramNodes;
-    }
-
-    params() {
-        return this.paramNodes;
+    constructor(type, name, nodes, wasmNode) {
+        super(type, name, nodes);
+        this.wasmNode = wasmNode;
     }
 
     /**
@@ -330,16 +318,25 @@ class AstFunc extends AstNode {
      */
     render(target) {
         let binary = document.createElement("span");
-        binary.innerHTML = this.wasmNode.symbol;
+        binary.innerHTML = this.wasmNode.symbol + "(";
         target.append(binary);
-        this.paramNodes.forEach(function (node) {
+        let lastSeparatorIndex = this.nodes.length - 1;
+        this.nodes.forEach(function (node, index) {
             node.render(target);
+            if(index < lastSeparatorIndex) {
+                let separator = document.createElement("span");
+                separator.innerText = ", ";
+                target.append(separator)
+            }
         });
+        let closeBracket = document.createElement("span");
+        closeBracket.innerText = ")";
+        target.append(closeBracket)
     }
 
     code() {
-        let code = flatten(this.lNode.code());
-        code = code.concat(flatten(this.rNode.code()));
+        let code = flatten(this.nodes[0].code());
+        code = code.concat(flatten(this.nodes[1].code()));
         code.push(this.wasmNode.wasmOp);
         return code;
     }
@@ -363,55 +360,62 @@ const Model = {
       name: "neg",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstUnary(Valtype.f32, "neg", new WasmNode(Valtype.f32, WasmOp.f32_neg, "-"),
-          new AstVariable(Valtype.f32, "a", 0),
+      ast: new AstUnary(Valtype.f32, "neg",
+          [new AstVariable(Valtype.f32, "a", [],0)],
+          new WasmNode(Valtype.f32, WasmOp.f32_neg, "-"),
       )
   }, {
       name: "add",
       public: true,
       returnTypes: [Valtype.f32],
-      ast:  new AstBinary(Valtype.f32, "add", new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
-          new AstVariable(Valtype.f32, "a", 0),
-          new AstVariable(Valtype.f32, "b", 1)
+      ast:  new AstBinary(Valtype.f32, "add",
+          [new AstVariable(Valtype.f32, "a", [], 0),
+          new AstVariable(Valtype.f32, "b", [], 1)],
+          new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
       )
   }, {
       name: "sub",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, "sub", new WasmNode(Valtype.f32, WasmOp.f32_sub, "-"),
-          new AstVariable(Valtype.f32, "a", 0),
-          new AstVariable(Valtype.f32, "b", 1)
+      ast: new AstBinary(Valtype.f32, "sub",
+          [new AstVariable(Valtype.f32, "a", [], 0),
+              new AstVariable(Valtype.f32, "b", [], 1)],
+          new WasmNode(Valtype.f32, WasmOp.f32_sub, "-"),
       )
   }, {
       name: "mul",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, "mul", new WasmNode(Valtype.f32, WasmOp.f32_mul, "&sdot;"),
-          new AstVariable(Valtype.f32, "a", 0),
-          new AstVariable(Valtype.f32, "b", 1)
+      ast: new AstBinary(Valtype.f32, "mul",
+          [new AstVariable(Valtype.f32, "a", [], 0),
+              new AstVariable(Valtype.f32, "b", [], 1)],
+          new WasmNode(Valtype.f32, WasmOp.f32_mul, "&sdot;"),
       )
   }, {
       name: "div",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, "div", new WasmNode(Valtype.f32, WasmOp.f32_div, "&divide;"),
-          new AstVariable(Valtype.f32, "a", 0),
-          new AstVariable(Valtype.f32, "b", 1)
+      ast: new AstBinary(Valtype.f32, "div",
+          [new AstVariable(Valtype.f32, "a", [], 0),
+              new AstVariable(Valtype.f32, "b", [], 1)],
+          new WasmNode(Valtype.f32, WasmOp.f32_div, "&divide;"),
       )
   }, {
       name: "max",
       public: true,
       returnTypes: [Valtype.f32],
-      ast: new AstBinary(Valtype.f32, "max", new WasmNode(Valtype.f32, WasmOp.f32_max, "max"),
-          new AstVariable(Valtype.f32, "a", 0),
-          new AstVariable(Valtype.f32, "b", 1)
+      ast: new AstFunc(Valtype.f32, "max",
+          [new AstVariable(Valtype.f32, "a", [], 0),
+              new AstVariable(Valtype.f32, "b", [], 1)],
+          new WasmNode(Valtype.f32, WasmOp.f32_max, "max"),
       )
   } ]
 };
 
-new AstBinary(Valtype.f32, "add", new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
-    new AstVariable(Valtype.f32, "a", 0),
-    new AstVariable(Valtype.f32, "b", 1)
+new AstBinary(Valtype.f32, "add",
+    [new AstVariable(Valtype.f32, "a", [], 0),
+        new AstVariable(Valtype.f32, "b", [], 1)],
+    new WasmNode(Valtype.f32, WasmOp.f32_add, "+"),
 );
 
 // *****************************************
@@ -429,7 +433,7 @@ function functionTypes() {
     let functionBytes = [Model.funcs.length];
     Model.funcs.forEach(function(func) {
         functionBytes.push(functionType);
-        functionBytes = functionBytes.concat(encodeVector(filterTypes(func.ast.params())));
+        functionBytes = functionBytes.concat(encodeVector(filterTypes(func.ast.nodes)));
         functionBytes = functionBytes.concat(encodeVector(func.returnTypes));
     });
     return functionBytes;
@@ -564,9 +568,9 @@ function renderFunctionOptions(funcModel, funcIndex) {
     funcElement.append(funcNameSpan);
 
     funcElement.append(funcNameSpan);
-    funcModel.ast.params().forEach(function(param, index, arr) {
+    funcModel.ast.nodes.forEach(function(param, index, arr) {
         let funcParamNameSpan = document.createElement("span");
-        funcParamNameSpan.innerHTML = param.name + ':' + decodeValtype(param.type)
+        funcParamNameSpan.innerHTML = decodeValtype(param.type) + "." + param.name
             + (index < arr.length - 1 ? ', ' : `) &rarr; ${decodeValtype(funcModel.returnTypes[0])}`);
         funcParamNameSpan.classList.add("param-name");
         funcElement.append(funcParamNameSpan);
