@@ -75,13 +75,15 @@ const moduleVersion = [0x01, 0x00, 0x00, 0x00];
 
 /**
  *
- * @param {number} n
+ * @param {number} f32
  * @returns {Uint8Array}
  */
-function ieee754 (n) {
-    const buf = Buffer.allocUnsafe(4);
-    buf.writeFloatLE(n, 0);
-    return Uint8Array.from(buf);
+function ieee754 (f32) {
+    let buffer = new ArrayBuffer(4);
+    let bytes = new Uint8Array(buffer);
+    let floatView = new Float32Array((buffer));
+    floatView[0] = f32;
+    return bytes;
 }
 
 /**
@@ -217,7 +219,7 @@ class AstConstant extends AstNode {
     }
 
     code() {
-        return [WasmOp.f32_const, signedLEB128(this.value)]
+        return [WasmOp.f32_const, flatten(ieee754(this.value))]
     }
 }
 
@@ -365,30 +367,34 @@ class WasmNode {
 }
 
 const Model = {
-  funcs: [ /*{
+  funcs: [ {
       public: true,
       params: [ new Param(Valtype.f32, "a"),
           new Param(Valtype.f32, "b"),
           new Param(Valtype.f32, "c"),
       ],
+      locals: [],
       returnTypes: [Valtype.f32],
       ast: [new AstFunc(Valtype.f32, "sigma", [
               new AstVariable(Valtype.f32, "a", 0),
               new AstBinary(Valtype.f32, "add", [
                   new AstVariable(Valtype.f32, "b", 1),
-                  new AstVariable(Valtype.f32, "a", 0)
+                  new AstVariable(Valtype.f32, "c", 2)
               ],
               new WasmNode(WasmOp.f32_add, "+"))
           ],
           new WasmNode(WasmOp.f32_add, "&sum;"),
       )]
-  }, /*{
+  }, {
       public: true,
+      params: [],
+      locals: [],
       returnTypes: [Valtype.f32],
-      ast: new AstConstant(Valtype.f32, "1", 1)
-  },*/ {
+      ast: [ new AstConstant(Valtype.f32, "const", 42) ]
+  }, {
       public: true,
       params: [ new Param(Valtype.f32, "a") ],
+      locals: [],
       returnTypes: [Valtype.f32],
       ast: [new AstUnary(Valtype.f32, "neg", [
               new AstVariable(Valtype.f32, "a",0)
@@ -400,26 +406,14 @@ const Model = {
       params: [ new Param(Valtype.f32, "a"),
           new Param(Valtype.f32, "b"),
       ],
+      locals: [],
       returnTypes: [Valtype.f32],
       ast:  [new AstBinary(Valtype.f32, "add",
           [new AstVariable(Valtype.f32, "a", 0),
           new AstVariable(Valtype.f32, "b", 1)],
           new WasmNode(WasmOp.f32_add, "+"),
       )]
-  }/*, {
-      public: true,
-      params: [ new Param(Valtype.f32, "a"),
-          new Param(Valtype.f32, "b"),
-          new Param(Valtype.f32, "c"),
-      ],
-      returnTypes: [Valtype.f32],
-      ast: [new AstFunc(Valtype.f32, "max", [
-              new AstVariable(Valtype.f32, "a", 0),
-              new AstVariable(Valtype.f32, "b", 1)
-          ],
-          new WasmNode(WasmOp.f32_max, "max"),
-      )]
-  }*/ ]
+  } ]
 };
 
 // *****************************************
@@ -447,10 +441,18 @@ function typeSection() {
     return createSection(Section.type, encodeVector(functionTypes()))
 }
 
+/**
+ * @param {[Valtype]} locals
+ */
+function getLocals(locals) {
+    if(locals.length === 0) return [emptyArray];
+    return encodeVector(locals);
+}
+
 function addCode() {
     let code = [Model.funcs.length];
     Model.funcs.forEach(function(func) {
-        let funcCode = [emptyArray];
+        let funcCode = getLocals(func.locals);
         func.ast.forEach(function (node) {
             funcCode = funcCode.concat(node.code());
         });
@@ -551,9 +553,8 @@ function build() {
         .then(obj => {
             instance = obj.instance;
             let f = instance.exports;
-            console.log(f);
-            //console.log(f.neg(f.mul(2, f.add(-10.25, -10.75))));
-            console.log(f.neg(f.add(-40, -2)));
+            console.log(`sigma(1, 2, 3) = ${f.sigma(1, 2, 3)}`);
+            console.log(f.neg(f.add(-84, f.const())));
         });
 }
 
