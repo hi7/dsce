@@ -306,7 +306,7 @@ class AstBinary extends AstNode {
 
     code() {
         let code = [];
-        this.ast.forEach(function(node, index) {
+        this.ast.forEach(function(node) {
             code = code.concat(flatten(node.code()));
         });
         code.push(this.wasmNode.wasmOp);
@@ -324,6 +324,14 @@ class AstFunc extends AstNode {
     constructor(type, name, ast, wasmNode) {
         super(type, name, ast);
         this.wasmNode = wasmNode;
+    }
+
+    graph(target) {
+        target.append(createRect('1', '1', '10', '4', 'title'));
+        target.append(createText('2.4', '4', 'start'));
+        target.append(createLine('6', '5', '6', '7'));
+        target.append(createRect('1', '7', '10', '4', 'title'));
+        target.append(createText('2.9', '10', 'end'));
     }
 
     /**
@@ -354,6 +362,43 @@ class AstFunc extends AstNode {
         return code;
     }
 }
+
+/*** SVG ***
+ * functions for creating SVG elements
+ */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function createText(x, y, label) {
+    let text = document.createElementNS(SVG_NS,"text");
+    text.setAttributeNS(null,"x", x);
+    text.setAttributeNS(null,"y", y);
+    text.textContent = label;
+    //text.setAttributeNS(null,"font-size","4");
+    return text;
+}
+
+function createRect(x, y, width, height) {
+    let rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', width);
+    rect.setAttribute('height', height);
+    rect.setAttribute('rx', '2');
+    rect.setAttribute('class', 'title');
+    return rect;
+}
+
+function createLine(x1, y1, x2, y2) {
+    let line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    return line;
+}
+
+/*** End SVG ***/
 
 class WasmNode {
     /**
@@ -548,7 +593,7 @@ function build() {
         .concat(exportSection())
         .concat(codeSection())
     );
-    hexDump(wasm);
+    //hexDump(wasm);
     WebAssembly.instantiate(wasm, importObject)
         .then(obj => {
             instance = obj.instance;
@@ -562,9 +607,11 @@ function build() {
 
 function renderCode(funcIndex) {
     let codeElement = document.getElementById('code');
+    let svgElement = document.getElementById('svg');
     codeElement.innerText = '';
-    Model.funcs[funcIndex].ast.forEach(function(node){
+    Model.funcs[funcIndex].ast.forEach(function(node) {
         node.render(codeElement);
+        node.graph(svgElement);
     });
 }
 

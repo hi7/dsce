@@ -8,13 +8,34 @@
         #code {
             margin-left: 1em;
         }
+        .title {
+            fill: #FFF;
+            stroke-width:0.15;
+            stroke: #000;
+        }
+        line {
+            stroke: #000;
+            stroke-width: 0.15;
+        }
+        text {
+            font-family: "Calibri Light";
+            font-size: 4px;
+        }
     </style>
 </head>
 <body>
     <H1>Domain Specific Component Editor</H1>
     <select id="functions" oninput="renderCode(this.value);"></select>
     <div id="code"></div>
-    <div id="ast"></div>
+    <svg id="svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <!--rect x="1" y="1" width="10" height="4" rx="2" class="title"></rect>
+        <text x="2.4" y="4">start</text>
+
+        <line x1="6" y1="5" x2="6" y2="7"/>
+
+        <rect x="1" y="7" width="10" height="4" rx="2" class="title"></rect>
+        <text x="2.4" y="10">end</text-->
+    </svg>
 </body>
 </html>
 
