@@ -327,11 +327,18 @@ class AstFunc extends AstNode {
     }
 
     graph(target) {
-        target.append(createRect('1', '1', '10', '4', 'title'));
-        target.append(createText('2.4', '4', 'start'));
-        target.append(createLine('6', '5', '6', '7'));
-        target.append(createRect('1', '7', '10', '4', 'title'));
-        target.append(createText('2.9', '10', 'end'));
+        let titleLabel = this.name;
+        let titleWidth = titleLabel.length * 2.5;
+        let endLabel = "end";
+        let endWidth = endLabel.length * 2.5;
+        let width = Math.max(titleWidth, endWidth);
+        let offset = 1;
+        let center = width/2 + offset;
+        target.append(createRect(`${offset}`, '1', width, '4', 'title'));
+        target.append(createText(`${center}`, '4', titleLabel));
+        target.append(createLine(`${center}`, '5', `${center}`, '7'));
+        target.append(createRect(`${offset}`, '7', width, '4', 'title'));
+        target.append(createText(`${center}`, '10', endLabel));
     }
 
     /**
@@ -373,6 +380,7 @@ function createText(x, y, label) {
     let text = document.createElementNS(SVG_NS,"text");
     text.setAttributeNS(null,"x", x);
     text.setAttributeNS(null,"y", y);
+    text.setAttributeNS(null,"text-anchor", "middle");
     text.textContent = label;
     //text.setAttributeNS(null,"font-size","4");
     return text;
