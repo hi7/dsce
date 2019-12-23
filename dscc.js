@@ -347,22 +347,18 @@ class AstFunc extends AstNode {
         let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel));
         let offset = 1;
         let center = width/2 + offset;
-        target.append(createRect(offset, 1, width, 4, 2));
-        target.append(createText(`${center}`, '4', titleLabel));
+        appendTextBox(target, offset, 1, this.name, 2, width);
         let paramX = offset + width;
         let lineLength = 2;
         this.params.forEach(function (node) {
             let paramName = node.name;
             let paramWidth = labelWidth(paramName);
             target.append(createLine(`${paramX}`, '3', `${paramX+lineLength}`, '3'));
-            target.append(createRect(paramX+lineLength, 1, paramWidth, 4, 0));
-            target.append(createText(`${paramX+lineLength+paramWidth/2}`, '4', paramName));
+            appendTextBox(target, paramX+lineLength, 1, paramName, 0, undefined);
             paramX += lineLength + paramWidth;
         });
-
         target.append(createLine(`${center}`, '5', `${center}`, '7'));
-        target.append(createRect(offset, 7, width, 4, 2));
-        target.append(createText(`${center}`, '10', endLabel));
+        appendTextBox(target, offset, 7, endLabel, 2, width);
     }
 
     /**
@@ -400,18 +396,24 @@ class AstFunc extends AstNode {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/**
+ * ceates an SVG text element.
+ * @param x
+ * @param y
+ * @param label
+ * @returns {SVGTextElement}
+ */
 function createText(x, y, label) {
     let text = document.createElementNS(SVG_NS,"text");
-    text.setAttributeNS(null,"x", x);
-    text.setAttributeNS(null,"y", y);
+    text.setAttributeNS(null,"x", `${x}`);
+    text.setAttributeNS(null,"y", `${y}`);
     text.setAttributeNS(null,"text-anchor", "middle");
     text.textContent = label;
-    //text.setAttributeNS(null,"font-size","4");
     return text;
 }
 
 /**
- * creates an SVG rect.
+ * creates an SVG rect element.
  * @param {number} x
  * @param {number} y
  * @param {number} width
@@ -437,6 +439,23 @@ function createLine(x1, y1, x2, y2) {
     line.setAttribute('x2', x2);
     line.setAttribute('y2', y2);
     return line;
+}
+
+/**
+ * @param {SVGAElement} target
+ * @param {number} x
+ * @param {number} y
+ * @param {string} label
+ * @param {number} rx: radius of rectangle corners
+ * @param {number} width
+ */
+function appendTextBox(target, x, y, label, rx, width) {
+    if (width === undefined) {
+        width = labelWidth(label);
+    }
+    target.append(createRect(x, y, width, 4, rx));
+    let center = width/2 + x;
+    target.append(createText(center, y + 3, label));
 }
 
 /*** End SVG ***/
