@@ -353,11 +353,11 @@ class AstFunc extends AstNode {
         this.params.forEach(function (node) {
             let paramName = node.name;
             let paramWidth = labelWidth(paramName);
-            target.append(createLine(`${paramX}`, '3', `${paramX+lineLength}`, '3'));
+            target.append(createLine(paramX, 3, paramX+lineLength, 3));
             appendTextBox(target, paramX+lineLength, 1, paramName, 0, undefined);
             paramX += lineLength + paramWidth;
         });
-        target.append(createLine(`${center}`, '5', `${center}`, '7'));
+        target.append(createLine(center, 5, center, 7));
         appendTextBox(target, offset, 7, endLabel, 2, width);
     }
 
@@ -432,17 +432,24 @@ function createRect(x, y, width, height, rx) {
     return rect;
 }
 
+/**
+ * @param {number} x1
+ * @param {number} y1
+ * @param {number} x2
+ * @param {number} y2
+ * @returns {SVGLineElement}
+ */
 function createLine(x1, y1, x2, y2) {
     let line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('x1', x1);
-    line.setAttribute('y1', y1);
-    line.setAttribute('x2', x2);
-    line.setAttribute('y2', y2);
+    line.setAttribute('x1', `${x1}`);
+    line.setAttribute('y1', `${y1}`);
+    line.setAttribute('x2', `${x2}`);
+    line.setAttribute('y2', `${y2}`);
     return line;
 }
 
 /**
- * @param {SVGAElement} target
+ * @param {SVGElement} target
  * @param {number} x
  * @param {number} y
  * @param {string} label
