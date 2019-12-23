@@ -347,14 +347,21 @@ class AstFunc extends AstNode {
         let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel));
         let offset = 1;
         let center = width/2 + offset;
-        target.append(createRect(`${offset}`, '1', width, '4', 'title'));
+        target.append(createRect(offset, 1, width, 4, 2));
         target.append(createText(`${center}`, '4', titleLabel));
-        this.params.forEach(function (node, index) {
-            console.log(node.name);
+        let paramX = offset + width;
+        let lineLength = 2;
+        this.params.forEach(function (node) {
+            let paramName = node.name;
+            let paramWidth = labelWidth(paramName);
+            target.append(createLine(`${paramX}`, '3', `${paramX+lineLength}`, '3'));
+            target.append(createRect(paramX+lineLength, 1, paramWidth, 4, 0));
+            target.append(createText(`${paramX+lineLength+paramWidth/2}`, '4', paramName));
+            paramX += lineLength + paramWidth;
         });
 
         target.append(createLine(`${center}`, '5', `${center}`, '7'));
-        target.append(createRect(`${offset}`, '7', width, '4', 'title'));
+        target.append(createRect(offset, 7, width, 4, 2));
         target.append(createText(`${center}`, '10', endLabel));
     }
 
@@ -403,13 +410,22 @@ function createText(x, y, label) {
     return text;
 }
 
-function createRect(x, y, width, height) {
+/**
+ * creates an SVG rect.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {number} rx
+ * @returns {SVGRectElement}
+ */
+function createRect(x, y, width, height, rx) {
     let rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', x);
-    rect.setAttribute('y', y);
-    rect.setAttribute('width', width);
-    rect.setAttribute('height', height);
-    rect.setAttribute('rx', '2');
+    rect.setAttribute('x', `${x}`);
+    rect.setAttribute('y', `${y}`);
+    rect.setAttribute('width', `${width}`);
+    rect.setAttribute('height', `${height}`);
+    rect.setAttribute('rx', `${rx}`);
     rect.setAttribute('class', 'title');
     return rect;
 }
