@@ -344,21 +344,39 @@ class AstFunc extends AstNode {
     graph(target) {
         let titleLabel = this.name;
         let endLabel = "end";
-        let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel));
+        let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel)); // TODO: scan ast for max width
         let offset = 1;
         let center = width/2 + offset;
-        appendTextBox(target, offset, 1, this.name, 2, width);
+        let y = 1;
+        appendTextBox(target, offset, y, this.name, 2, width); // start box
         let paramX = offset + width;
         let lineLength = 2;
+        y = y + 2;
         this.params.forEach(function (node) {
             let paramName = node.name;
+            if(node instanceof AstVariable) {
+                paramName = 'var ' + paramName;
+            }
             let paramWidth = labelWidth(paramName);
-            target.append(createLine(paramX, 3, paramX+lineLength, 3));
+            target.append(createLine(paramX, y, paramX+lineLength, y));
             appendTextBox(target, paramX+lineLength, 1, paramName, 0, undefined);
             paramX += lineLength + paramWidth;
         });
-        target.append(createLine(center, 5, center, 7));
-        appendTextBox(target, offset, 7, endLabel, 2, width);
+        y = y + 2;
+        target.append(createLine(center, y, center, y + 2));
+
+        this.ast.forEach(function (node) {
+            y = y + 6;
+            let nodeName = node.name;
+            if(node instanceof AstVariable) {
+                nodeName = 'var ' + nodeName;
+            }
+            let paramWidth = labelWidth(nodeName);
+            appendTextBox(target, offset, y - 4, nodeName, 0, width);
+            target.append(createLine(center, y, center, y + lineLength));
+            paramX += lineLength + paramWidth;
+        });
+        appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
     }
 
     /**
