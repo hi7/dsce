@@ -364,6 +364,7 @@ class AstFunc extends AstNode {
             let paramWidth = labelWidth(nodeName);
             appendTextBox(target, offset, y - 4, nodeName, 0, width);
             target.append(createLine(center, y, center, y + LINE_LENGTH));
+            appendParams(target, offset + width, y - 2, node.params);
             paramX += LINE_LENGTH + paramWidth;
         });
         appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
@@ -482,7 +483,7 @@ function appendParams(target, x, y, params) {
         }
         let paramWidth = labelWidth(paramName);
         target.append(createLine(x, y, x + LINE_LENGTH, y));
-        appendTextBox(target, x + LINE_LENGTH, 1, paramName, 0, undefined);
+        appendTextBox(target, x + LINE_LENGTH, y - 2, paramName, 0, undefined);
         x += LINE_LENGTH + paramWidth;
     });
 }
