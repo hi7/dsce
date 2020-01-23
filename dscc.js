@@ -213,6 +213,27 @@ class AstConstant extends AstNode {
     }
 
     /**
+     * draw svg graph of ast.
+     * @param target
+     */
+    graph(target) {
+        let titleLabel = this.name;
+        let endLabel = numberToString(this.type, this.value);
+        let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel));
+        let offset = 1;
+        let center = width/2 + offset;
+        let y = 1;
+        appendTextBox(target, offset, y, this.name, 2, width); // start box
+        let paramX = offset + width;
+        y = y + 2;
+        appendParams(target, paramX, y, this.params);
+        y = y + 2;
+        target.append(createLine(center, y, center, y + 2));
+        y = appendAst(target, offset, y, width, center, this.ast);
+        appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
+    }
+
+    /**
      * @param {HTMLElement} target
      */
     render(target) {
@@ -700,7 +721,9 @@ function renderCode(funcIndex) {
     let svgElement = document.getElementById('svg');
     codeElement.innerText = '';
     Model.funcs[funcIndex].ast.forEach(function(node) {
+        codeElement.innerHTML = '';
         node.render(codeElement);
+        svgElement.innerHTML = '';
         node.graph(svgElement);
     });
 }
