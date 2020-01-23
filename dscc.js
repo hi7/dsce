@@ -287,6 +287,27 @@ class AstUnary extends AstNode {
     }
 
     /**
+     * draw svg graph of ast.
+     * @param target
+     */
+    graph(target) {
+        let titleLabel = this.name;
+        let endLabel = numberToString(this.type, this.wasmNode.symbol);
+        let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel));
+        let offset = 1;
+        let center = width/2 + offset;
+        let y = 1;
+        appendTextBox(target, offset, y, this.name, 2, width); // start box
+        let paramX = offset + width;
+        y = y + 2;
+        appendParams(target, paramX, y, this.params);
+        y = y + 2;
+        target.append(createLine(center, y, center, y + 2));
+        y = appendAst(target, offset, y, width, center, this.ast);
+        appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
+    }
+
+    /**
      * @param {HTMLElement} target
      */
     render(target) {
@@ -317,6 +338,23 @@ class AstBinary extends AstNode {
     constructor(type, name, ast, params, wasmNode) {
         super(type, name, ast, params);
         this.wasmNode = wasmNode;
+    }
+
+    graph(target) {
+        let titleLabel = this.name;
+        let endLabel = "end";
+        let width = Math.max(labelWidth(titleLabel), labelWidth(endLabel)); // TODO: scan ast for max width
+        let offset = 1;
+        let center = width/2 + offset;
+        let y = 1;
+        appendTextBox(target, offset, y, this.name, 2, width); // start box
+        let paramX = offset + width;
+        y = y + 2;
+        appendParams(target, paramX, y, this.params);
+        y = y + 2;
+        target.append(createLine(center, y, center, y + 2));
+        y = appendAst(target, offset, y, width, center, this.ast);
+        appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
     }
 
     /**
