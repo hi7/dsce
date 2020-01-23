@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>DomSpec ComEd</title>
-    <script src="dscc.js"></script>
+    <script src="dsce.js"></script>
     <style>
         #code {
             margin-left: 1em;
+        }
+        .variable {
+            color: darkcyan;
         }
         .title {
             fill: #FFF;
@@ -25,34 +28,13 @@
 </head>
 <body>
     <H1>Domain Specific Component Editor</H1>
-    <select id="functions" oninput="renderCode(this.value);"></select>
+    <button onclick="execute()">run</button>
+    <!--select id="functions" oninput="renderCode(this.value);"></select-->
     <div id="code"></div>
-    <svg id="svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <!--rect x="1" y="1" width="10" height="4" rx="2" class="title"></rect>
-        <text x="2.4" y="4">start</text>
-
-        <line x1="6" y1="5" x2="6" y2="7"/>
-
-        <rect x="1" y="7" width="10" height="4" rx="2" class="title"></rect>
-        <text x="2.4" y="10">end</text-->
-    </svg>
 </body>
 </html>
 
 <script type="text/javascript">
-    //Ast.render(document.getElementById('ast'));
-
-    render();
-    renderCode(0);
-    build();
-    /*let memory = new WebAssembly.Memory({initial:10, maximum:100});
-    WebAssembly.instantiateStreaming(fetch('compiler.wasm'), { js: { mem: memory } })
-        .then(obj => {
-            /*let i32 = new Uint32Array(memory.buffer);
-            for (let i = 0; i < 10; i++) {
-                i32[i] = i;
-            }
-            let sum = obj.instance.exports.accumulate(0, 10);
-            console.log(sum);
-        });*/
+    let code = document.getElementById("code");
+    html(code);
 </script>
