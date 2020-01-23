@@ -350,18 +350,8 @@ class AstFunc extends AstNode {
         let y = 1;
         appendTextBox(target, offset, y, this.name, 2, width); // start box
         let paramX = offset + width;
-        let lineLength = 2;
         y = y + 2;
-        this.params.forEach(function (node) {
-            let paramName = node.name;
-            if(node instanceof AstVariable) {
-                paramName = 'var ' + paramName;
-            }
-            let paramWidth = labelWidth(paramName);
-            target.append(createLine(paramX, y, paramX+lineLength, y));
-            appendTextBox(target, paramX+lineLength, 1, paramName, 0, undefined);
-            paramX += lineLength + paramWidth;
-        });
+        appendParams(target, paramX, y, this.params);
         y = y + 2;
         target.append(createLine(center, y, center, y + 2));
 
@@ -373,8 +363,8 @@ class AstFunc extends AstNode {
             }
             let paramWidth = labelWidth(nodeName);
             appendTextBox(target, offset, y - 4, nodeName, 0, width);
-            target.append(createLine(center, y, center, y + lineLength));
-            paramX += lineLength + paramWidth;
+            target.append(createLine(center, y, center, y + LINE_LENGTH));
+            paramX += LINE_LENGTH + paramWidth;
         });
         appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
     }
@@ -413,6 +403,7 @@ class AstFunc extends AstNode {
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const LINE_LENGTH = 2;
 
 /**
  * ceates an SVG text element.
@@ -481,6 +472,19 @@ function appendTextBox(target, x, y, label, rx, width) {
     target.append(createRect(x, y, width, 4, rx));
     let center = width/2 + x;
     target.append(createText(center, y + 3, label));
+}
+
+function appendParams(target, x, y, params) {
+    params.forEach(function (node) {
+        let paramName = node.name;
+        if(node instanceof AstVariable) {
+            paramName = 'var ' + paramName;
+        }
+        let paramWidth = labelWidth(paramName);
+        target.append(createLine(x, y, x + LINE_LENGTH, y));
+        appendTextBox(target, x + LINE_LENGTH, 1, paramName, 0, undefined);
+        x += LINE_LENGTH + paramWidth;
+    });
 }
 
 /*** End SVG ***/
