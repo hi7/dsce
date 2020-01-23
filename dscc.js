@@ -354,19 +354,7 @@ class AstFunc extends AstNode {
         appendParams(target, paramX, y, this.params);
         y = y + 2;
         target.append(createLine(center, y, center, y + 2));
-
-        this.ast.forEach(function (node) {
-            y = y + 6;
-            let nodeName = node.name;
-            if(node instanceof AstVariable) {
-                nodeName = 'var ' + nodeName;
-            }
-            let paramWidth = labelWidth(nodeName);
-            appendTextBox(target, offset, y - 4, nodeName, 0, width);
-            target.append(createLine(center, y, center, y + LINE_LENGTH));
-            appendParams(target, offset + width, y - 2, node.params);
-            paramX += LINE_LENGTH + paramWidth;
-        });
+        y = appendAst(target, offset, y, width, center, this.ast);
         appendTextBox(target, offset, y + 2, endLabel, 2, width); // end box
     }
 
@@ -488,6 +476,19 @@ function appendParams(target, x, y, params) {
     });
 }
 
+function appendAst(target, x, y, width, center, ast) {
+    ast.forEach(function (node) {
+        y = y + 6;
+        let nodeName = node.name;
+        if(node instanceof AstVariable) {
+            nodeName = 'var ' + nodeName;
+        }
+        appendTextBox(target, x, y - 4, nodeName, 0, width);
+        target.append(createLine(center, y, center, y + LINE_LENGTH));
+        appendParams(target, x + width, y - 2, node.params);
+    });
+    return y;
+}
 /*** End SVG ***/
 
 class WasmNode {
@@ -510,10 +511,10 @@ const Model = {
               new AstVariable(Valtype.f32, "a", [], 0),
               new AstBinary(Valtype.f32, "add", [
                   new AstVariable(Valtype.f32, "b", [], 1),
-                  new AstVariable(Valtype.f32, "c", [], 2)
-              ],
-              [new Param(Valtype.f32, "a"), new Param(Valtype.f32, "b")],
-              new WasmNode(WasmOp.f32_add, "+")),
+                  new AstVariable(Valtype.f32, "c", [], 2) ],
+                  [new Param(Valtype.f32, "a"), new Param(Valtype.f32, "b")],
+                  new WasmNode(WasmOp.f32_add, "+")
+              ),
           ],
           [ new Param(Valtype.f32, "a"),
               new Param(Valtype.f32, "b"),
