@@ -486,6 +486,7 @@ function appendAst(target, x, y, width, center, ast) {
         appendTextBox(target, x, y - 4, nodeName, 0, width);
         target.append(createLine(center, y, center, y + LINE_LENGTH));
         appendParams(target, x + width, y - 2, node.params);
+        y = appendAst(target, x, y, width, center, node.ast);
     });
     return y;
 }
